@@ -1,9 +1,10 @@
 #include <iostream>
 #include <string>
 
-#include "substrait/plan.pb.h"
+#include "absl/status/statusor.h"
 #include "google/protobuf/util/json_util.h"
 #include "pink_perilla.hpp"
+#include "substrait/plan.pb.h"
 
 int main(int argc, char* argv[]) {
     std::string sql;
@@ -18,16 +19,21 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    substrait::Plan plan = pink_perilla::Parse(sql);
+    absl::StatusOr<substrait::Plan> plan = pink_perilla::Parse(sql);
+
+    if (!plan.ok()) {
+        std::cerr << plan.status().message() << std::endl;
+        return 1;
+    }
 
     std::string json_output;
     google::protobuf::util::JsonPrintOptions options;
     options.add_whitespace = true;
-    if (!google::protobuf::util::MessageToJsonString(plan, &json_output, options).ok()) {
+    if (google::protobuf::util::MessageToJsonString(*plan, &json_output, options).ok()) {
+        std::cout << json_output << std::endl;
+    } else {
         std::cerr << "Failed to parse JSON string." << std::endl;
         return 1;
-    } else {
-        std::cout << json_output << std::endl;
     }
 
     std::cout << json_output << std::endl;

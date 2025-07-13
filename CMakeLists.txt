@@ -134,11 +134,7 @@ foreach(test_name IN ITEMS insert_test update_test delete_test select_test join_
         GTest::gtest_main
         pink_perilla_lib
         substrait_files
-            substrait_files
-            absl::strings
             absl::log
-            absl::status
-            absl::statusor
         ${READLINE_LIBRARIES}
     )
     target_include_directories(${test_name} PUBLIC

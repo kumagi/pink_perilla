@@ -1,22 +1,37 @@
 #include "pink_perilla.hpp"
 
-#include <iostream>
-#include <memory>
+#include <substrait/plan.pb.h>
 
-#include "sql_parser.hpp"
-#include "substrait/plan.pb.h"
+#include "detail/sql_parser.hpp"
+#include "detail/substrait_converter.hpp"
 
 namespace pink_perilla {
 
 // --- Main Parse Function ---
-substrait::Plan Parse(std::string_view sql) {
-    absl::StatusOr<substrait::Plan> plan_status = ParseSql(sql);
-    if (!plan_status.ok()) {
-        std::cerr << "Failed to parse SQL: " << plan_status.status() << std::endl;
-        return substrait::Plan{};
+absl::StatusOr<substrait::Plan> Parse(std::string_view sql) {
+    absl::StatusOr<Statement> plan = ParseSql(sql);
+    if (!plan.ok()) {
+        return absl::Status(absl::StatusCode::kInternal, "Failed to parse SQL");
     }
-    return *plan_status;
+    if (std::holds_alternative<CreateTableInfo>(*plan)) {
+        return converter::ToSubstrait(std::get<CreateTableInfo>(*plan));
+    }
+    if (std::holds_alternative<DropTableInfo>(*plan)) {
+        return converter::ToSubstrait(std::get<DropTableInfo>(*plan));
+    }
+    if (std::holds_alternative<DeleteInfo>(*plan)) {
+        return converter::ToSubstrait(std::get<DeleteInfo>(*plan));
+    }
+    if (std::holds_alternative<SelectInfo>(*plan)) {
+        return converter::ToSubstrait(std::get<SelectInfo>(*plan));
+    }
+    if (std::holds_alternative<InsertInfo>(*plan)) {
+        return converter::ToSubstrait(std::get<InsertInfo>(*plan));
+    }
+    if (std::holds_alternative<UpdateInfo>(*plan)) {
+        return converter::ToSubstrait(std::get<UpdateInfo>(*plan));
+    }
+    return absl::Status(absl::StatusCode::kInternal, "Unknown statement type");
 }
 
 }  // namespace pink_perilla
-

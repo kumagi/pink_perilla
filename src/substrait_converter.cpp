@@ -1,13 +1,32 @@
-#include "substrait_converter.hpp"
+#include "detail/substrait_converter.hpp"
 
+#include <absl/log/log.h>
+
+#include "detail/utils.hpp"
 #include "substrait/algebra.pb.h"
 #include "substrait/type.pb.h"
 
-
-#include "utils.hpp"
-
 namespace pink_perilla::converter {
 
+namespace {
+
+substrait::SortField_SortDirection ConvertSortDirection(SortDirection direction) {
+    switch (direction) {
+        case SortDirection::ASC_NULLS_LAST:
+            return substrait::SortField_SortDirection_SORT_DIRECTION_ASC_NULLS_LAST;
+        case SortDirection::ASC_NULLS_FIRST:
+            return substrait::SortField_SortDirection_SORT_DIRECTION_ASC_NULLS_FIRST;
+        case SortDirection::DESC_NULLS_LAST:
+            return substrait::SortField_SortDirection_SORT_DIRECTION_DESC_NULLS_FIRST;
+        case SortDirection::DESC_NULLS_FIRST:
+            return substrait::
+                SortField_SortDirection_SORT_DIRECTION_DESC_NULLS_LAST;
+        default:
+            return substrait::SortField_SortDirection_SORT_DIRECTION_CLUSTERED;
+    }
+}
+
+}
 
 substrait::Plan ToSubstrait(const SelectInfo& info) {
     substrait::Plan plan;
@@ -18,7 +37,7 @@ substrait::Plan ToSubstrait(const SelectInfo& info) {
         if (sub_plan.relations_size() > 0 && sub_plan.relations(0).has_root()) {
             current_rel = new substrait::Rel(sub_plan.relations(0).root().input());
         } else {
-            return substrait::Plan();
+            return {};
         }
     } else if (info.from_table) {
         substrait::ReadRel* read_rel = new substrait::ReadRel();
@@ -26,7 +45,7 @@ substrait::Plan ToSubstrait(const SelectInfo& info) {
         current_rel = new substrait::Rel();
         current_rel->set_allocated_read(read_rel);
     } else {
-        return substrait::Plan();
+        return {};
     }
 
     for (const auto& cross_join_table : info.cross_join_tables) {
@@ -43,10 +62,11 @@ substrait::Plan ToSubstrait(const SelectInfo& info) {
 
     for (const auto& join_info : info.joins) {
         substrait::JoinRel* join_rel = new substrait::JoinRel();
-        if (join_info.type == JoinType::INNER)
+        if (join_info.type == JoinType::INNER) {
             join_rel->set_type(substrait::JoinRel::JOIN_TYPE_INNER);
-        else
+        } else {
             join_rel->set_type(substrait::JoinRel::JOIN_TYPE_LEFT);
+        }
         join_rel->set_allocated_left(current_rel);
         join_rel->set_allocated_right(new substrait::Rel());
         join_rel->mutable_right()->set_allocated_read(new substrait::ReadRel());
@@ -59,6 +79,22 @@ substrait::Plan ToSubstrait(const SelectInfo& info) {
         join_rel->set_allocated_expression(condition);
         current_rel = new substrait::Rel();
         current_rel->set_allocated_join(join_rel);
+    }
+
+    if (info.where_condition.has_value()) {
+        substrait::FilterRel* filter_rel = new substrait::FilterRel();
+        filter_rel->set_allocated_input(current_rel);
+
+        substrait::Expression* condition = filter_rel->mutable_condition();
+        substrait::Expression::ScalarFunction* scalar_fn =
+            condition->mutable_scalar_function();
+        scalar_fn->set_function_reference(0);  // Placeholder
+        substrait::FunctionArgument* arg = scalar_fn->add_arguments();
+        arg->mutable_value()->mutable_literal()->set_string(
+            *info.where_condition);
+
+        current_rel = new substrait::Rel();
+        current_rel->set_allocated_filter(filter_rel);
     }
 
     bool has_aggregates = false;
@@ -138,7 +174,7 @@ substrait::Plan ToSubstrait(const SelectInfo& info) {
         sort_rel->set_allocated_input(current_rel);
         for (const auto& sort_info : info.order_by_columns) {
             substrait::SortField* sort_field = sort_rel->add_sorts();
-            sort_field->set_direction(sort_info.direction);
+            sort_field->set_direction(ConvertSortDirection(sort_info.direction));
             sort_field->mutable_expr()->mutable_literal()->set_string(sort_info.column);
         }
         current_rel = new substrait::Rel();
