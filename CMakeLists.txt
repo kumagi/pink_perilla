@@ -33,7 +33,6 @@ FetchContent_Declare(
   SOURCE_SUBDIR cmake
   OVERRIDE_FIND_PACKAGE
   )
-set(protobuf_HAVE_BUILTIN_ATOMICS ON)
 FetchContent_MakeAvailable(protobuf)
 set(protobuf_BUILD_TESTS ON)
 set(protobuf_BUILD_CONFORMANCE ON)
@@ -47,7 +46,6 @@ set(protobuf_MSVC_STATIC_RUNTIME OFF)
 set(protobuf_WITH_ZLIB ON CACHE BOOL "" FORCE)
 set(Protobuf_PROTOC_EXECUTABLE _deps/${protobuf-build/bin/protoc})
 set(Protobuf_VERBOSE ON)
-set(WITH_PROTOC ON)
 
 add_subdirectory("${CMAKE_CURRENT_BINARY_DIR}/_deps/protobuf-src")
 

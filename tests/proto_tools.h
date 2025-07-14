@@ -15,8 +15,21 @@ void ProtoEqual(const substrait::Plan &actual,
     substrait::Plan expected;
     google::protobuf::TextFormat::ParseFromString(expected_prototext,
                                                   &expected);
-    ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equivalent(
-        actual, expected));
+
+    google::protobuf::util::MessageDifferencer differencer;
+    std::string diff_report;
+    differencer.ReportDifferencesToString(&diff_report);
+
+    std::string actual_text;
+    google::protobuf::TextFormat::PrintToString(actual, &actual_text);
+    std::string expected_text;
+    google::protobuf::TextFormat::PrintToString(expected, &expected_text);
+
+    ASSERT_TRUE(differencer.Compare(actual, expected))
+        << "Protobuf comparison failed:\n"
+        << "\n--- Expected ---\n" << expected_text
+        << "\n--- Actual ---\n" << actual_text
+        << "\n--- Differences ---\n" << diff_report;
 }
 
 #endif //PROTO_TOOLS_H

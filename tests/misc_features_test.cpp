@@ -34,16 +34,29 @@ TEST(Misc, OrderBy) {
 
 TEST(Misc, Limit) {
     absl::StatusOr<substrait::Plan> plan =
-        pink_perilla::Parse("SELECT * FROM my_table LIMIT 10");
+        pink_perilla::Parse("SELECT * FROM users LIMIT 10");
 
     ASSERT_TRUE(plan.ok());
     ProtoEqual(*plan,
-               R"pb(relations {
-                      root {
-                        input {
+               R"pb(plan {
+                      relations {
+                        root {
                           fetch {
-                            input { read { named_table { names: "my_table" } } }
-                            count_expr { literal { i64: 10 } }
+                            count: 10
+                            input {
+                              read {
+                                base_schema {
+                                  names: ["id", "name"]
+                                  struct_ {
+                                    types { i32 {} }
+                                    types { string {} }
+                                  }
+                                }
+                                named_table {
+                                  names: "users"
+                                }
+                              }
+                            }
                           }
                         }
                       }
@@ -51,67 +64,151 @@ TEST(Misc, Limit) {
                )pb");
 }
 
-TEST(MiscFeatures, GroupBy) {
+TEST(MiscFeatures, GroupByWithCount) {
     absl::StatusOr<substrait::Plan> plan = pink_perilla::Parse(
-        "SELECT department, SUM(salary) FROM employees GROUP BY department");
+        "SELECT department, COUNT(employee_id) FROM employees GROUP BY department");
 
     ASSERT_TRUE(plan.ok());
     ProtoEqual(
         *plan,
-        R"pb(relations {
-               root {
-                 input {
-                   project {
-                     input {
-                       aggregate {
-                         input { read { named_table { names: "employees" } } }
-                         groupings { expression_references: 0 }
-                         measures { measure {} }
-                         grouping_expressions {
-                           literal { string: "department" }
+        R"pb(plan {
+               relations {
+                 root {
+                   aggregate {
+                     groupings {
+                       grouping_expressions {
+                         selection {
+                           direct_reference {
+                             struct_field {
+                               field: 0
+                             }
+                           }
+                           root_reference {}
                          }
                        }
                      }
-                     expressions { literal { string: "department" } }
-                     expressions { literal { string: "SUM(salary)" } }
+                     measures {
+                       measure {
+                         function_reference: 1
+                         arguments {
+                           value {
+                             selection {
+                               direct_reference {
+                                 struct_field {
+                                   field: 1
+                                 }
+                               }
+                               root_reference {}
+                             }
+                           }
+                         }
+                         output_type {
+                           i64 {}
+                         }
+                       }
+                     }
+                     input {
+                       read {
+                         base_schema {
+                           names: ["department", "employee_id"]
+                           struct_ {
+                             types { string {} }
+                             types { i32 {} }
+                           }
+                         }
+                         named_table {
+                           names: "employees"
+                         }
+                       }
+                     }
                    }
+                 }
+               }
+               extension_uris {
+                 extension_uri_anchor: 1
+                 uri: "https://github.com/substrait-io/substrait/blob/main/extensions/functions_aggregate.yaml"
+               }
+               extensions {
+                 extension_function {
+                   extension_uri_reference: 1
+                   function_anchor: 1
+                   name: "count:any"
                  }
                }
              }
         )pb");
 }
 
-TEST(MiscFeatures, AggregateFunctions) {
+TEST(MiscFeatures, GroupByWithAvg) {
     absl::StatusOr<substrait::Plan> plan = pink_perilla::Parse(
-        "SELECT department, COUNT(id), SUM(salary), MAX(salary), MIN(salary) "
-        "FROM employees GROUP BY department");
+        "SELECT department, AVG(salary) FROM employees GROUP BY department");
 
     ASSERT_TRUE(plan.ok());
     ProtoEqual(
         *plan,
-        R"pb(relations {
-               root {
-                 input {
-                   project {
-                     input {
-                       aggregate {
-                         input { read { named_table { names: "employees" } } }
-                         groupings { expression_references: 0 }
-                         measures { measure {} }
-                         measures { measure {} }
-                         measures { measure {} }
-                         measures { measure {} }
-                         grouping_expressions {
-                           literal { string: "department" }
+        R"pb(plan {
+               relations {
+                 root {
+                   aggregate {
+                     groupings {
+                       grouping_expressions {
+                         selection {
+                           direct_reference {
+                             struct_field {
+                               field: 0
+                             }
+                           }
+                           root_reference {}
                          }
                        }
                      }
-                     expressions { literal { string: "department" } }
-                     expressions { literal { string: "COUNT(id)" } }
-                     expressions { literal { string: "SUM(salary)" } }
-                     expressions { literal { string: "MAX(salary)" } }
-                     expressions { literal { string: "MIN(salary)" } }
+                     measures {
+                       measure {
+                         function_reference: 1
+                         arguments {
+                           value {
+                             selection {
+                               direct_reference {
+                                 struct_field {
+                                   field: 2
+                                 }
+                               }
+                               root_reference {}
+                             }
+                           }
+                         }
+                         output_type {
+                           fp64 {}
+                         }
+                       }
+                     }
+                     input {
+                       read {
+                         base_schema {
+                           names: ["department", "employee_id", "salary"]
+                           struct_ {
+                             types { string {} }
+                             types { i32 {} }
+                             types { fp64 {} }
+                           }
+                         }
+                         named_table {
+                           names: "employees"
+                         }
+                       }
+                     }
                    }
+                 }
+               }
+               extension_uris {
+                 extension_uri_anchor: 1
+                 uri: "https://github.com/substrait-io/substrait/blob/main/extensions/functions_aggregate.yaml"
+               }
+               extensions {
+                 extension_function {
+                   extension_uri_reference: 1
+                   function_anchor: 1
+                   name: "avg:fp64"
                  }
                }
              }

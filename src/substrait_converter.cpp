@@ -238,7 +238,8 @@ substrait::Plan ToSubstrait(const DropTableInfo& info) {
 
 substrait::Plan ToSubstrait(const DeleteInfo& info) {
     substrait::Plan plan;
-    substrait::WriteRel* write_rel = new substrait::WriteRel();
+    auto* root = plan.add_relations()->mutable_root();
+    auto* write_rel = root->mutable_write();
     write_rel->set_op(substrait::WriteRel::WRITE_OP_DELETE);
     write_rel->mutable_named_table()->add_names(info.table_name);
 
@@ -267,17 +268,13 @@ substrait::Plan ToSubstrait(const DeleteInfo& info) {
         write_rel->set_allocated_input(input_rel);
     }
 
-    substrait::Rel* rel = new substrait::Rel();
-    rel->set_allocated_write(write_rel);
-    substrait::RelRoot* root = new substrait::RelRoot();
-    root->set_allocated_input(rel);
-    plan.add_relations()->set_allocated_root(root);
     return plan;
 }
 
 substrait::Plan ToSubstrait(const UpdateInfo& info) {
     substrait::Plan plan;
-    substrait::UpdateRel* update_rel = new substrait::UpdateRel();
+    auto* root = plan.add_relations()->mutable_root();
+    auto* update_rel = root->mutable_update();
     update_rel->mutable_named_table()->add_names(info.table_name);
 
     if (info.where_clause) {
@@ -311,17 +308,13 @@ substrait::Plan ToSubstrait(const UpdateInfo& info) {
         }
     }
 
-    substrait::Rel* rel = new substrait::Rel();
-    rel->set_allocated_update(update_rel);
-    substrait::RelRoot* root = new substrait::RelRoot();
-    root->set_allocated_input(rel);
-    plan.add_relations()->set_allocated_root(root);
     return plan;
 }
 
 substrait::Plan ToSubstrait(const InsertInfo& info) {
     substrait::Plan plan;
-    substrait::WriteRel* write_rel = new substrait::WriteRel();
+    auto* root = plan.add_relations()->mutable_root();
+    auto* write_rel = root->mutable_write();
     write_rel->mutable_named_table()->add_names(info.table_name);
 
     substrait::ReadRel* read_rel = new substrait::ReadRel();
@@ -351,13 +344,6 @@ substrait::Plan ToSubstrait(const InsertInfo& info) {
     substrait::Rel* input_rel = new substrait::Rel();
     input_rel->set_allocated_read(read_rel);
     write_rel->set_allocated_input(input_rel);
-
-    substrait::Rel* rel = new substrait::Rel();
-    rel->set_allocated_write(write_rel);
-
-    substrait::RelRoot* root = new substrait::RelRoot();
-    root->set_allocated_input(rel);
-    plan.add_relations()->set_allocated_root(root);
 
     return plan;
 }
