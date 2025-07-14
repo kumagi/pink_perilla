@@ -20,16 +20,12 @@ endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fclang-abi-compat=17")
 
-# --- Dependency Management with FetchContent ---
-include(FetchContent)
+find_package(Protobuf REQUIRED)
+find_package(absl REQUIRED)
 
 # Protobuf will fetch its own dependency, Abseil. Our project will use that one.
-FetchContent_Declare(
-  protobuf
-  GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
-  GIT_TAG main # Using main, consider pinning to a specific tag for stability
-)
-FetchContent_MakeAvailable(protobuf)
+
+
 
 # Declare and fetch GoogleTest for our tests
 FetchContent_Declare(
