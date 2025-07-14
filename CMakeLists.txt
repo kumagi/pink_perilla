@@ -1,13 +1,18 @@
 cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+set(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
+
+set(FETCHCONTENT_QUIET OFF)
+set(ABSL_PROPAGATE_CXX_STD ON)
+set(ABSL_ENABLE_INSTALL ON)
+
 project(PinkPerilla)
 
+find_package(ZLIB REQUIRED)
 
-
-
-
-# Option to enable LeakSanitizer
+# Option to enable LeakSanitizer.
 option(USE_LEAK_SANITIZER "Enable LeakSanitizer" OFF)
 
 if(USE_LEAK_SANITIZER)
@@ -17,16 +22,36 @@ if(USE_LEAK_SANITIZER)
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=leak")
 endif()
 
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fclang-abi-compat=17")
-
-find_package(Protobuf REQUIRED)
-find_package(absl REQUIRED)
+# --- Dependency Management with FetchContent ---
+include(FetchContent)
 
 # Protobuf will fetch its own dependency, Abseil. Our project will use that one.
+FetchContent_Declare(
+  protobuf
+  GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
+  GIT_TAG main # Using main, consider pinning to a specific tag for stability
+  SOURCE_SUBDIR cmake
+  OVERRIDE_FIND_PACKAGE
+  )
+set(protobuf_HAVE_BUILTIN_ATOMICS ON)
+FetchContent_MakeAvailable(protobuf)
+set(protobuf_BUILD_TESTS ON)
+set(protobuf_BUILD_CONFORMANCE ON)
+set(protobuf_BUILD_EXAMPLES OFF)
+set(protobuf_BUILD_LIBPROTOC ON)
+set(protobuf_FORCE_FETCH_DEPENDENCIES ON)
+set(protobuf_BUILD_PROTOBUF_BINARIES ON)
+set(protobuf_BUILD_PROTOC_BINARIES ON)
+set(protobuf_DISABLE_RTTI ON)
+set(protobuf_MSVC_STATIC_RUNTIME OFF)
+set(protobuf_WITH_ZLIB ON CACHE BOOL "" FORCE)
+set(Protobuf_PROTOC_EXECUTABLE _deps/${protobuf-build/bin/protoc})
+set(Protobuf_VERBOSE ON)
+set(WITH_PROTOC ON)
 
+add_subdirectory("${CMAKE_CURRENT_BINARY_DIR}/_deps/protobuf-src")
 
-
+FetchContent_GetProperties(protobuf)
 # Declare and fetch GoogleTest for our tests
 FetchContent_Declare(
   googletest
@@ -34,7 +59,6 @@ FetchContent_Declare(
   GIT_TAG main # Using main, consider pinning to a specific tag for stability
 )
 FetchContent_MakeAvailable(googletest)
-
 
 # Find Readline
 find_path(READLINE_INCLUDE_DIR readline/readline.h)
@@ -109,14 +133,7 @@ target_link_libraries(pink_perilla
 
 target_compile_features(pink_perilla PRIVATE cxx_std_17)
 
-
-
 enable_testing()
-configure_file(
-  ${CMAKE_SOURCE_DIR}/CTestCustom.cmake
-  ${CMAKE_BINARY_DIR}/CTestCustom.cmake
-  COPYONLY
-)
 include(GoogleTest)
 
 foreach(test_name IN ITEMS insert_test update_test delete_test select_test join_test misc_features_test robustness_test ddl_test)
