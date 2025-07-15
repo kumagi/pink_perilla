@@ -16,41 +16,21 @@ TEST(Delete, BasicDelete) {
         *plan,
         R"pb(relations {
                root {
-                 write {
-                   type: DML_OPERATION_TYPE_DELETE
-                   named_table { names: "users" }
-                   input {
-                     filter {
-                       condition {
-                         scalar_function {
-                           function_reference: 1
-                           output_type {
-                             bool { nullability: NULLABILITY_NULLABLE }
-                           }
-                           arguments {
-                             value {
-                               selection {
-                                 direct_reference { struct_field { field: 0 } }
-                                 root_reference {}
-                               }
-                             }
-                           }
-                           arguments {
-                             value { literal { i32: 101 } }
-                           }
+                 input {
+                   write {
+                     named_table { names: "users" }
+                     op: WRITE_OP_DELETE
+                     input {
+                       filter {
+                         input {
+                           read { named_table { names: "users" } }
                          }
-                       }
-                       input {
-                         read {
-                           base_schema {
-                             names: "id"
-                             names: "name"
-                             struct_ {
-                               types { i32 {} }
-                               types { string {} }
+                         condition {
+                           scalar_function {
+                             arguments {
+                               value { literal { string: "id = 101" } }
                              }
                            }
-                           named_table { names: "users" }
                          }
                        }
                      }
@@ -58,16 +38,5 @@ TEST(Delete, BasicDelete) {
                  }
                }
              }
-             extension_uris {
-               extension_uri_anchor: 1
-               uri: "https://github.com/substrait-io/substrait/blob/main/"
-                    "extensions/functions_comparison.yaml"
-             }
-             extensions {
-               extension_function {
-                 extension_uri_reference: 1
-                 function_anchor: 1
-                 name: "equal:i32_i32"
-               }
-             })pb");
+        )pb");
 }

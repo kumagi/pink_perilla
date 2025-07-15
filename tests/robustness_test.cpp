@@ -86,14 +86,21 @@ TEST(Robustness, MultiLines) {
                    project {
                      input {
                        filter {
-                         input { read { named_table { names: "my_table" } } }
-                         condition { literal { string: "c2 > 10" } }
+                         input {
+                           read { named_table { names: "my_table" } }
+                         }
+                         condition {
+                           scalar_function {
+                             arguments {
+                               value { literal { string: "c2 > 10" } }
+                             }
+                           }
+                         }
                        }
                      }
                      expressions { literal { string: "c1" } }
                    }
                  }
-                 names: "c1"
                }
              }
         )pb");

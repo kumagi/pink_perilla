@@ -14,14 +14,24 @@ TEST(Insert, BasicInsert) {
     ProtoEqual(*plan,
         R"pb(relations {
                root {
-                 write {
-                   named_table { names: "users" }
-                   input {
-                     virtual_table {
-                       values {
-                         struct_ {
-                           fields { i32: 101 }
-                           fields { string: "Alice" }
+                 input {
+                   write {
+                     named_table { names: "users" }
+                     input {
+                       read {
+                         base_schema {
+                           names: "id"
+                           names: "name"
+                         }
+                         virtual_table {
+                           expressions {
+                             fields {
+                               literal { i32: 101 }
+                             }
+                             fields {
+                               literal { string: "Alice" }
+                             }
+                           }
                          }
                        }
                      }

@@ -8,8 +8,10 @@
 namespace pink_perilla {
 
 // --- Main Parse Function ---
-absl::StatusOr<substrait::Plan> Parse(std::string_view sql) {
-    absl::StatusOr<Statement> plan = ParseSql(sql);
+absl::StatusOr<substrait::Plan> Parse(
+    std::string_view sql,
+    const std::vector<TableDefinition>& table_definitions) {
+    absl::StatusOr<Statement> plan = SqlParser::Parse(sql, table_definitions);
     if (!plan.ok()) {
         return absl::Status(absl::StatusCode::kInternal, "Failed to parse SQL");
     }

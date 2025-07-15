@@ -239,7 +239,7 @@ substrait::Plan ToSubstrait(const DropTableInfo& info) {
 substrait::Plan ToSubstrait(const DeleteInfo& info) {
     substrait::Plan plan;
     auto* root = plan.add_relations()->mutable_root();
-    auto* write_rel = root->mutable_write();
+    auto* write_rel = root->mutable_input()->mutable_write();
     write_rel->set_op(substrait::WriteRel::WRITE_OP_DELETE);
     write_rel->mutable_named_table()->add_names(info.table_name);
 
@@ -274,7 +274,7 @@ substrait::Plan ToSubstrait(const DeleteInfo& info) {
 substrait::Plan ToSubstrait(const UpdateInfo& info) {
     substrait::Plan plan;
     auto* root = plan.add_relations()->mutable_root();
-    auto* update_rel = root->mutable_update();
+    auto* update_rel = root->mutable_input()->mutable_update();
     update_rel->mutable_named_table()->add_names(info.table_name);
 
     if (info.where_clause) {
@@ -314,7 +314,7 @@ substrait::Plan ToSubstrait(const UpdateInfo& info) {
 substrait::Plan ToSubstrait(const InsertInfo& info) {
     substrait::Plan plan;
     auto* root = plan.add_relations()->mutable_root();
-    auto* write_rel = root->mutable_write();
+    auto* write_rel = root->mutable_input()->mutable_write();
     write_rel->mutable_named_table()->add_names(info.table_name);
 
     substrait::ReadRel* read_rel = new substrait::ReadRel();

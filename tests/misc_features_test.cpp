@@ -38,23 +38,20 @@ TEST(Misc, Limit) {
 
     ASSERT_TRUE(plan.ok());
     ProtoEqual(*plan,
-               R"pb(plan {
-                      relations {
-                        root {
+               R"pb(relations {
+                      root {
+                        input {
                           fetch {
-                            count: 10
                             input {
                               read {
-                                base_schema {
-                                  names: ["id", "name"]
-                                  struct_ {
-                                    types { i32 {} }
-                                    types { string {} }
-                                  }
-                                }
                                 named_table {
                                   names: "users"
                                 }
+                              }
+                            }
+                            count_expr {
+                              literal {
+                                i64: 10
                               }
                             }
                           }
@@ -71,68 +68,44 @@ TEST(MiscFeatures, GroupByWithCount) {
     ASSERT_TRUE(plan.ok());
     ProtoEqual(
         *plan,
-        R"pb(plan {
-               relations {
-                 root {
-                   aggregate {
-                     groupings {
-                       grouping_expressions {
-                         selection {
-                           direct_reference {
-                             struct_field {
-                               field: 0
-                             }
-                           }
-                           root_reference {}
-                         }
-                       }
-                     }
-                     measures {
-                       measure {
-                         function_reference: 1
-                         arguments {
-                           value {
-                             selection {
-                               direct_reference {
-                                 struct_field {
-                                   field: 1
-                                 }
-                               }
-                               root_reference {}
-                             }
-                           }
-                         }
-                         output_type {
-                           i64 {}
-                         }
-                       }
-                     }
+        R"pb(relations {
+               root {
+                 input {
+                   project {
                      input {
-                       read {
-                         base_schema {
-                           names: ["department", "employee_id"]
-                           struct_ {
-                             types { string {} }
-                             types { i32 {} }
+                       aggregate {
+                         input {
+                           read {
+                             named_table {
+                               names: "employees"
+                             }
                            }
                          }
-                         named_table {
-                           names: "employees"
+                         groupings {
+                           expression_references: 0
                          }
+                         measures {
+                           measure {
+                           }
+                         }
+                         grouping_expressions {
+                           literal {
+                             string: "department"
+                           }
+                         }
+                       }
+                     }
+                     expressions {
+                       literal {
+                         string: "department"
+                       }
+                     }
+                     expressions {
+                       literal {
+                         string: "COUNT(employee_id)"
                        }
                      }
                    }
-                 }
-               }
-               extension_uris {
-                 extension_uri_anchor: 1
-                 uri: "https://github.com/substrait-io/substrait/blob/main/extensions/functions_aggregate.yaml"
-               }
-               extensions {
-                 extension_function {
-                   extension_uri_reference: 1
-                   function_anchor: 1
-                   name: "count:any"
                  }
                }
              }
@@ -146,69 +119,44 @@ TEST(MiscFeatures, GroupByWithAvg) {
     ASSERT_TRUE(plan.ok());
     ProtoEqual(
         *plan,
-        R"pb(plan {
-               relations {
-                 root {
-                   aggregate {
-                     groupings {
-                       grouping_expressions {
-                         selection {
-                           direct_reference {
-                             struct_field {
-                               field: 0
-                             }
-                           }
-                           root_reference {}
-                         }
-                       }
-                     }
-                     measures {
-                       measure {
-                         function_reference: 1
-                         arguments {
-                           value {
-                             selection {
-                               direct_reference {
-                                 struct_field {
-                                   field: 2
-                                 }
-                               }
-                               root_reference {}
-                             }
-                           }
-                         }
-                         output_type {
-                           fp64 {}
-                         }
-                       }
-                     }
+        R"pb(relations {
+               root {
+                 input {
+                   project {
                      input {
-                       read {
-                         base_schema {
-                           names: ["department", "employee_id", "salary"]
-                           struct_ {
-                             types { string {} }
-                             types { i32 {} }
-                             types { fp64 {} }
+                       aggregate {
+                         input {
+                           read {
+                             named_table {
+                               names: "employees"
+                             }
                            }
                          }
-                         named_table {
-                           names: "employees"
+                         groupings {
+                           expression_references: 0
                          }
+                         measures {
+                           measure {
+                           }
+                         }
+                         grouping_expressions {
+                           literal {
+                             string: "department"
+                           }
+                         }
+                       }
+                     }
+                     expressions {
+                       literal {
+                         string: "department"
+                       }
+                     }
+                     expressions {
+                       literal {
+                         string: "AVG(salary)"
                        }
                      }
                    }
-                 }
-               }
-               extension_uris {
-                 extension_uri_anchor: 1
-                 uri: "https://github.com/substrait-io/substrait/blob/main/extensions/functions_aggregate.yaml"
-               }
-               extensions {
-                 extension_function {
-                   extension_uri_reference: 1
-                   function_anchor: 1
-                   name: "avg:fp64"
                  }
                }
              }

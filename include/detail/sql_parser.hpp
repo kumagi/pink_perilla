@@ -5,8 +5,10 @@
 #include <vector>
 #include <memory>
 #include <substrait/plan.pb.h>
+#include <absl/container/flat_hash_map.h>
 
 #include "absl/status/statusor.h"
+#include "table_definition.hpp"
 
 struct InsertInfo {
     std::string table_name;
@@ -276,25 +278,6 @@ struct SelectInfo {
     }
 };
 
-union Info {
-    SelectInfo select_rows;
-    InsertInfo insert_rows;
-    UpdateInfo update_rows;
-    DeleteInfo delete_rows;
-    CreateTableInfo create_table;
-    DropTableInfo drop_table;
-};
-
-enum class StatementType {
-    UNSPECIFIED,
-    SELECT,
-    INSERT,
-    UPDATE,
-    DELETE,
-    CREATE_TABLE,
-    DROP_TABLE,
-};
-
 typedef std::variant<
     SelectInfo,
     UpdateInfo,
@@ -304,66 +287,42 @@ typedef std::variant<
     DropTableInfo
     > Statement;
 
-inline std::ostream& operator<<(std::ostream &ost, const Statement& st) {
-    if (std::holds_alternative<SelectInfo>(st)) {
-        const auto& info = std::get<SelectInfo>(st);
-        ost << info;
-    } else if (std::holds_alternative<UpdateInfo>(st)) {
-        const auto& info = std::get<UpdateInfo>(st);
-        ost << info;
-    } else if (std::holds_alternative<InsertInfo>(st)) {
-        const auto& info = std::get<InsertInfo>(st);
-        ost << info;
-    } else if (std::holds_alternative<DeleteInfo>(st)) {
-        const auto& info = std::get<DeleteInfo>(st);
-        ost << info;
-    } else if (std::holds_alternative<CreateTableInfo>(st)) {
-        const auto& info = std::get<CreateTableInfo>(st);
-        ost << info;
-    } else if (std::holds_alternative<DropTableInfo>(st)) {
-        const auto& info = std::get<DropTableInfo>(st);
-        ost << info;
-    } else {
-        ost << "(UNSPECIFIED)";
-    }
-    return ost;
+class SqlParser {
+public:
+    static absl::StatusOr<Statement> Parse(
+    std::string_view sql,
+    const std::vector<pink_perilla::TableDefinition>& table_definitions);
+
+private:
+    SqlParser(std::string_view sql,
+              const std::vector<pink_perilla::TableDefinition>& table_definitions);
+    absl::StatusOr<Statement> Parse();
+    void ConsumeWhitespace();
+    bool ConsumeKeyword(const std::string& keyword);
+    absl::StatusOr<std::string> ParseIdentifier();
+    bool ConsumeChar(char c);
+    absl::StatusOr<std::string> ParseType();
+    absl::StatusOr<ColumnDef> ParseColumnDef();
+
+    absl::StatusOr<CreateTableInfo> ParseCreateTable();
+    absl::StatusOr<DropTableInfo> ParseDropTable();
+    absl::StatusOr<DeleteInfo> ParseDeleteStatement();
+    absl::StatusOr<UpdateInfo> ParseUpdateStatement();
+    absl::StatusOr<InsertInfo> ParseInsertStatement();
+    absl::StatusOr<SelectInfo> ParseSelectStatement();
+    absl::StatusOr<SelectItem> ParseSelectItem();
+    absl::StatusOr<std::string> ParseExpression();
+    absl::StatusOr<std::vector<SelectItem>> ParseSelectItems();
+    absl::StatusOr<std::string> ParseFromClause();
+    absl::StatusOr<std::vector<JoinInfo>> ParseJoinClauses();
+    absl::StatusOr<std::vector<std::string>> ParseGroupByClause();
+    absl::StatusOr<std::vector<SortInfo>> ParseOrderByClause();
+    absl::StatusOr<int64_t> ParseLimitClause();
+    absl::StatusOr<std::vector<SetClause>> ParseSetClauses();
+    absl::StatusOr<std::string> ParseWhereClause();
+    absl::StatusOr<std::vector<ColumnDef>> ParseColumnDefinitions();
+    absl::StatusOr<std::string> ParseSetValue();
+
+    std::string_view sql_view_;
+    absl::flat_hash_map<std::string, pink_perilla::TableDefinition> table_definitions_;
 };
-
-
-// Main entry point for the new SQL parser.
-absl::StatusOr<Statement> ParseSql(std::string_view sql);
-
-// Specific parsers for DDL statements.
-absl::StatusOr<CreateTableInfo> ParseCreateTable(std::string_view sql);
-
-absl::StatusOr<DropTableInfo> ParseDropTable(std::string_view sql);
-
-// Specific parsers for DML statements.
-absl::StatusOr<DeleteInfo> ParseDeleteStatement(std::string_view sql);
-
-absl::StatusOr<UpdateInfo> ParseUpdateStatement(std::string_view sql);
-
-absl::StatusOr<SelectInfo> ParseSelectStatement(std::string_view &sql);
-
-absl::StatusOr<InsertInfo> ParseInsertStatement(std::string_view &sql);
-
-// Helper functions for parsing specific clauses.
-absl::StatusOr<std::vector<SelectItem> > ParseSelectItems(std::string_view &sql);
-
-absl::StatusOr<std::string> ParseFromClause(std::string_view &sql);
-
-absl::StatusOr<std::vector<JoinInfo> > ParseJoinClauses(std::string_view &sql);
-
-absl::StatusOr<std::vector<std::string> > ParseGroupByClause(
-    std::string_view &sql);
-
-absl::StatusOr<std::vector<SortInfo> > ParseOrderByClause(std::string_view &sql);
-
-absl::StatusOr<int64_t> ParseLimitClause(std::string_view &sql);
-
-absl::StatusOr<std::vector<SetClause> > ParseSetClauses(std::string_view &sql);
-
-absl::StatusOr<std::string> ParseWhereClause(std::string_view &sql);
-
-absl::StatusOr<std::vector<ColumnDef> > ParseColumnDefinitions(
-    std::string_view &sql);

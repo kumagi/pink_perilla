@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
+include(FetchContent)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
@@ -22,32 +23,21 @@ if(USE_LEAK_SANITIZER)
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=leak")
 endif()
 
-# --- Dependency Management with FetchContent ---
-include(FetchContent)
+FetchContent_Declare(
+  absl
+  GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+  GIT_TAG 20230125.3
+)
+FetchContent_MakeAvailable(absl)
 
-# Protobuf will fetch its own dependency, Abseil. Our project will use that one.
+set(protobuf_BUILD_TESTS OFF)
 FetchContent_Declare(
   protobuf
   GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
-  GIT_TAG main # Using main, consider pinning to a specific tag for stability
-  SOURCE_SUBDIR cmake
-  OVERRIDE_FIND_PACKAGE
-  )
+  GIT_TAG v23.4
+)
 FetchContent_MakeAvailable(protobuf)
-set(protobuf_BUILD_TESTS ON)
-set(protobuf_BUILD_CONFORMANCE ON)
-set(protobuf_BUILD_EXAMPLES OFF)
-set(protobuf_BUILD_LIBPROTOC ON)
-set(protobuf_FORCE_FETCH_DEPENDENCIES ON)
-set(protobuf_BUILD_PROTOBUF_BINARIES ON)
-set(protobuf_BUILD_PROTOC_BINARIES ON)
-set(protobuf_DISABLE_RTTI ON)
-set(protobuf_MSVC_STATIC_RUNTIME OFF)
-set(protobuf_WITH_ZLIB ON CACHE BOOL "" FORCE)
-set(Protobuf_PROTOC_EXECUTABLE _deps/${protobuf-build/bin/protoc})
-set(Protobuf_VERBOSE ON)
-
-add_subdirectory("${CMAKE_CURRENT_BINARY_DIR}/_deps/protobuf-src")
+find_package(Protobuf REQUIRED)
 
 FetchContent_GetProperties(protobuf)
 # Declare and fetch GoogleTest for our tests
@@ -92,12 +82,11 @@ target_include_directories(substrait_files PUBLIC
 )
 target_link_libraries(substrait_files PUBLIC protobuf::libprotobuf)
 
-file(GLOB pink_perilla_lib_srcs
-  "src/*.cpp"
-  "src/substrait_converter.cpp"
+set(pink_perilla_lib_srcs
+  src/pink_perilla.cpp
+  src/sql_parser.cpp
+  src/substrait_converter.cpp
 )
-list(REMOVE_ITEM pink_perilla_lib_srcs "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
-list(APPEND pink_perilla_lib_srcs "src/sql_parser.cpp")
 add_library(pink_perilla_lib STATIC ${pink_perilla_lib_srcs})
 set_target_properties(pink_perilla_lib PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
 target_include_directories(pink_perilla_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -134,7 +123,7 @@ target_compile_features(pink_perilla PRIVATE cxx_std_17)
 enable_testing()
 include(GoogleTest)
 
-foreach(test_name IN ITEMS insert_test update_test delete_test select_test join_test misc_features_test robustness_test ddl_test)
+foreach(test_name IN ITEMS insert_test update_test delete_test select_test join_test misc_features_test robustness_test ddl_test table_definition_test parser_test)
     add_executable(
         ${test_name}
         tests/${test_name}.cpp
